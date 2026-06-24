@@ -1,14 +1,16 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-24 23:50:57 +0300
+Last updated: 2026-06-24 23:53:10 +0300
 
 ## Current State
 
 - Repo: `/Users/aboghali/Project/ghostty-fresh-rtl-v1.3.1`
 - Branch: `bidi/simple-rtl-v1.3.1`
-- Current repo commit: `eef69f5d3d67945de6e248f369be70340963a7fe`
+- Base simple RTL commit: `eef69f5d3d67945de6e248f369be70340963a7fe`
+- Latest verified RTL source fix commit: `737bf3b7f`
 - Current repo build output: `/Users/aboghali/Project/ghostty-fresh-rtl-v1.3.1/zig-out/Ghostty.app`
-- Repo build version: `Ghostty 1.3.1`, `channel: stable`
+- Latest verified repo build version: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+737bf3b7f`, `channel: tip`
+- Latest verified repo build binary hash: `3ab5efb2f614ad4d12216e6e779ef118b88e6254913e70da797515fb5f187007`
 
 ## Golden Artifact
 
