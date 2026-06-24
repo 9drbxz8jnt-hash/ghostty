@@ -1,6 +1,6 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-25 00:02:17 +0300
+Last updated: 2026-06-25 00:20:16 +0300
 
 ## Current State
 
@@ -42,5 +42,9 @@ Last updated: 2026-06-25 00:02:17 +0300
 - Phase A source fix: numbered RTL list markers now treat digits as weak for base-direction detection in `src/terminal/rtl_projection.zig`.
 - Added regression coverage for numbered and hyphen RTL list markers in `src/terminal/rtl_projection_test.zig`.
 - Verified with targeted `zig build test -Dtest-filter='rtl projection' -Demit-macos-app=false`, full `zig build test -Demit-macos-app=false`, and a release build command.
-- The wrapped-continuation English-token bug is still a separate phase because `projectCells` receives one row at a time and does not know the wrapped logical line base direction.
+- Phase B source fix: wrapped continuation rows now inherit base direction from the first visible row in the same soft-wrapped logical line, and RTL continuations align visible text to the RTL edge.
+- The inherited projection options are passed through both row rendering and cursor x-mapping in `src/renderer/generic.zig`.
+- Added regression coverage for RTL-base wrapped continuations that begin with English and for LTR-only continuation rows aligned to the RTL edge.
+- Verified Phase B with `zig build test -Dtest-filter='wrapped continuation' -Demit-macos-app=false`, `zig build test -Dtest-filter='rtl projection' -Demit-macos-app=false`, and full `zig build test -Demit-macos-app=false`.
+- A fresh plan-consultant run for Phase B hung and was stopped; execution followed the earlier consultant guidance that already required renderer-level base-direction inheritance and matching cursor/render projection.
 - Keep `default.profraw` out of commits unless profiling data is intentionally needed.

@@ -17,6 +17,16 @@ pub const Projection = struct {
     }
 };
 
+pub const BaseDirection = enum {
+    ltr,
+    rtl,
+};
+
+pub const Options = struct {
+    base_direction: ?BaseDirection = null,
+    align_end: bool = false,
+};
+
 const Run = struct {
     start: usize,
     end: usize,
@@ -28,6 +38,15 @@ pub fn projectCells(
     cells: std.MultiArrayList(Cell).Slice,
     width: usize,
 ) Allocator.Error!?Projection {
+    return projectCellsWithOptions(allocator, cells, width, .{});
+}
+
+pub fn projectCellsWithOptions(
+    allocator: Allocator,
+    cells: std.MultiArrayList(Cell).Slice,
+    width: usize,
+    options: Options,
+) Allocator.Error!?Projection {
     const cells_len = @min(cells.len, width);
     if (cells_len == 0) return null;
 
@@ -35,23 +54,10 @@ pub fn projectCells(
     const visible_end = visibleEnd(raw[0..cells_len]);
     if (visible_end == 0) return null;
 
-    var has_rtl = false;
-    var first_strong_rtl = false;
-    var found_first_strong = false;
-    for (raw[0..visible_end]) |cell| {
-        const cp = cell.codepoint();
-        if (isStrongRtl(cp)) {
-            has_rtl = true;
-            if (!found_first_strong) {
-                first_strong_rtl = true;
-                found_first_strong = true;
-            }
-        } else if (isStrongLtr(cp) and !found_first_strong) {
-            first_strong_rtl = false;
-            found_first_strong = true;
-        }
-    }
-    if (!has_rtl) return null;
+    const base_direction = options.base_direction orelse
+        detectBaseDirectionFromRaw(raw[0..visible_end]) orelse return null;
+    const has_rtl = hasStrongRtl(raw[0..visible_end]);
+    if (!has_rtl and !(options.align_end and base_direction == .rtl)) return null;
 
     var runs: std.ArrayList(Run) = .empty;
     defer runs.deinit(allocator);
@@ -85,8 +91,16 @@ pub fn projectCells(
         logical_to_visual[idx] = idx;
     }
 
-    var visual_x: usize = 0;
-    if (first_strong_rtl) {
+    var visual_x: usize = if (options.align_end) cells_len - visible_end else 0;
+    if (options.align_end) {
+        for (visible_end..cells_len, 0..) |source_x, dest_x| {
+            copyCell(cells, &out_slice, dest_x, source_x);
+            visual_to_logical[dest_x] = source_x;
+            logical_to_visual[source_x] = dest_x;
+        }
+    }
+
+    if (base_direction == .rtl) {
         var run_i = runs.items.len;
         while (run_i > 0) {
             run_i -= 1;
@@ -98,10 +112,12 @@ pub fn projectCells(
         }
     }
 
-    for (visible_end..cells_len) |source_x| {
-        copyCell(cells, &out_slice, source_x, source_x);
-        visual_to_logical[source_x] = source_x;
-        logical_to_visual[source_x] = source_x;
+    if (!options.align_end) {
+        for (visible_end..cells_len) |source_x| {
+            copyCell(cells, &out_slice, source_x, source_x);
+            visual_to_logical[source_x] = source_x;
+            logical_to_visual[source_x] = source_x;
+        }
     }
 
     return .{
@@ -109,6 +125,17 @@ pub fn projectCells(
         .visual_to_logical = visual_to_logical,
         .logical_to_visual = logical_to_visual,
     };
+}
+
+pub fn detectBaseDirection(cells: std.MultiArrayList(Cell).Slice, width: usize) ?BaseDirection {
+    const cells_len = @min(cells.len, width);
+    if (cells_len == 0) return null;
+
+    const raw = cells.items(.raw);
+    const visible_end = visibleEnd(raw[0..cells_len]);
+    if (visible_end == 0) return null;
+
+    return detectBaseDirectionFromRaw(raw[0..visible_end]);
 }
 
 pub fn isStrongRtl(cp: u21) bool {
@@ -124,6 +151,22 @@ pub fn isStrongLtr(cp: u21) bool {
 
 pub fn isRtlCandidate(cp: u21) bool {
     return isStrongRtl(cp);
+}
+
+fn detectBaseDirectionFromRaw(cells: []const @import("page.zig").Cell) ?BaseDirection {
+    for (cells) |cell| {
+        const cp = cell.codepoint();
+        if (isStrongRtl(cp)) return .rtl;
+        if (isStrongLtr(cp)) return .ltr;
+    }
+    return null;
+}
+
+fn hasStrongRtl(cells: []const @import("page.zig").Cell) bool {
+    for (cells) |cell| {
+        if (isStrongRtl(cell.codepoint())) return true;
+    }
+    return false;
 }
 
 fn visibleEnd(cells: []const @import("page.zig").Cell) usize {

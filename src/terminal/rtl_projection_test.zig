@@ -109,6 +109,43 @@ test "rtl projection keeps hyphen list marker at rtl edge" {
     try expectCodepoints(projection.cells.slice().items(.raw), &expected);
 }
 
+test "rtl projection can inherit rtl base for wrapped continuation rows" {
+    const logical = [_]u21{
+        'w',    'o',    'r',    'd',    ' ',
+        0x0645, 0x0631, 0x062D, 0x0628, 0x0627,
+    };
+    const expected = [_]u21{
+        0x0627, 0x0628, 0x062D, 0x0631, 0x0645,
+        'w',    'o',    'r',    'd',    ' ',
+    };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCellsWithOptions(testing.allocator, cells.slice(), logical.len, .{
+        .base_direction = .rtl,
+    })).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
+test "rtl projection right aligns ltr-only wrapped continuation rows" {
+    const logical = [_]u21{ 'w', 'o', 'r', 'd' };
+    const expected = [_]u21{ 0, 0, 0, 0, 'w', 'o', 'r', 'd' };
+
+    var cells = try makeCells(testing.allocator, &logical, expected.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCellsWithOptions(testing.allocator, cells.slice(), expected.len, .{
+        .base_direction = .rtl,
+        .align_end = true,
+    })).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
 test "rtl projection preserves trailing empty cells" {
     const logical = [_]u21{ 0x0645, 0x0631, 0x062D, 0x0628, 0x0627 };
     const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, 0, 0, 0 };

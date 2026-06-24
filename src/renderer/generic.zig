@@ -2428,6 +2428,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     y,
                     row,
                     cells,
+                    rtlProjectionOptionsForRow(
+                        row_raws[0..row_len],
+                        row_cells[0..row_len],
+                        y_usize,
+                        self.cells.size.columns,
+                    ),
                     preedit_range,
                     selection,
                     highlights,
@@ -2460,10 +2466,16 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
                     const cursor_cells_slice = row_cells[cursor_vp.y].slice();
                     const cursor_cells_len = @min(cursor_cells_slice.len, self.cells.size.columns);
-                    var projection = (terminal.rtl_projection.projectCells(
+                    var projection = (terminal.rtl_projection.projectCellsWithOptions(
                         self.alloc,
                         cursor_cells_slice,
                         cursor_cells_len,
+                        rtlProjectionOptionsForRow(
+                            row_raws[0..row_len],
+                            row_cells[0..row_len],
+                            @intCast(cursor_vp.y),
+                            self.cells.size.columns,
+                        ),
                     ) catch |err| {
                         log.warn("error projecting RTL cursor x err={}", .{err});
                         break :cursor_visual_x null;
@@ -2625,11 +2637,41 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             // });
         }
 
+        fn rtlProjectionOptionsForRow(
+            row_raws: []const terminal.page.Row,
+            row_cells: []std.MultiArrayList(terminal.RenderState.Cell),
+            row_index: usize,
+            width: usize,
+        ) terminal.rtl_projection.Options {
+            if (row_index >= row_raws.len or row_index >= row_cells.len) return .{};
+            if (!row_raws[row_index].wrap_continuation) return .{};
+
+            var base_index = row_index;
+            while (base_index > 0 and row_raws[base_index].wrap_continuation) {
+                base_index -= 1;
+            }
+
+            // The wrapped logical line started above the current viewport; keep
+            // auto-detection instead of guessing a base direction.
+            if (row_raws[base_index].wrap_continuation) return .{};
+
+            const base_direction = terminal.rtl_projection.detectBaseDirection(
+                row_cells[base_index].slice(),
+                width,
+            ) orelse return .{};
+
+            return .{
+                .base_direction = base_direction,
+                .align_end = base_direction == .rtl,
+            };
+        }
+
         fn rebuildRow(
             self: *Self,
             y: terminal.size.CellCountInt,
             row: terminal.page.Row,
             cells: *std.MultiArrayList(terminal.RenderState.Cell),
+            rtl_projection_options: terminal.rtl_projection.Options,
             preedit_range: ?PreeditRange,
             selection: ?[2]terminal.size.CellCountInt,
             highlights: *const std.ArrayList(terminal.RenderState.Highlight),
@@ -2644,7 +2686,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             var rtl_projection: ?terminal.rtl_projection.Projection = null;
             defer if (rtl_projection) |*projection| projection.deinit(self.alloc);
 
-            if (try terminal.rtl_projection.projectCells(self.alloc, cells_slice, cells_len)) |projection| {
+            if (try terminal.rtl_projection.projectCellsWithOptions(
+                self.alloc,
+                cells_slice,
+                cells_len,
+                rtl_projection_options,
+            )) |projection| {
                 rtl_projection = projection;
                 cells_slice = rtl_projection.?.cells.slice();
             }
