@@ -58,6 +58,124 @@ test "rtl projection keeps embedded ltr token order" {
     try expectCodepoints(projection.cells.slice().items(.raw), &expected);
 }
 
+test "rtl projection resolves repeated english tokens with surrounding arabic" {
+    const logical = [_]u21{
+        0x0625, 0x062D, 0x0646, 0x0627, ' ',    'a',    'p',    'p',
+        ' ',    0x0646, 0x0648, 0x0639, 0x0647, 0x0627, ' ',    'c',
+        'h',    'a',    't',    ' ',    'a',    'p',    'p',    ' ',
+        0x0644, 0x0627, 0x0638, 0x0628, 0x0637, ' ',    0x0627, 0x0644,
+        0x0627, 0x0633, 0x0645, ' ',    0x0628, 0x064A, 0x0642, 0x0648,
+        0x0644,
+    };
+    const expected = [_]u21{
+        0x0644, 0x0648, 0x0642, 0x064A, 0x0628, ' ',    0x0645, 0x0633,
+        0x0627, 0x0644, 0x0627, ' ',    0x0637, 0x0628, 0x0638, 0x0627,
+        0x0644, ' ',    'c',    'h',    'a',    't',    ' ',    'a',
+        'p',    'p',    ' ',    0x0627, 0x0647, 0x0639, 0x0648, 0x0646,
+        ' ',    'a',    'p',    'p',    ' ',    0x0627, 0x0646, 0x062D,
+        0x0625,
+    };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCells(testing.allocator, cells.slice(), logical.len)).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
+test "rtl projection keeps path token order when it ends an rtl sentence" {
+    const logical = [_]u21{
+        0x0625, 0x062D, 0x0646, 0x0627, ' ',    0x0648, 0x0645, 0x0641,
+        0x064A, 0x0634, ' ',    0x0645, 0x0634, 0x0631, 0x0648, 0x0639,
+        ' ',    0x0645, 0x0641, 0x062A, 0x0648, 0x062D, ' ',    0x0642,
+        0x062F, 0x0627, 0x0645, 0x064A, ' ',    0x062F, 0x0644, 0x0648,
+        0x0642, 0x062A, 0x064A, ' ',    0x0641, 0x064A, ' ',    '/',
+        'U',    's',    'e',    'r',    's',    '/',    'a',    'b',
+        'o',    'g',    'h',    'a',    'l',    'i',
+    };
+    const expected = [_]u21{
+        'U',    's',    'e',    'r',    's',    '/',    'a',    'b',
+        'o',    'g',    'h',    'a',    'l',    'i',    '/',    ' ',
+        0x064A, 0x0641, ' ',    0x064A, 0x062A, 0x0642, 0x0648, 0x0644,
+        0x062F, ' ',    0x064A, 0x0645, 0x0627, 0x062F, 0x0642, ' ',
+        0x062D, 0x0648, 0x062A, 0x0641, 0x0645, ' ',    0x0639, 0x0648,
+        0x0631, 0x0634, 0x0645, ' ',    0x0634, 0x064A, 0x0641, 0x0645,
+        0x0648, ' ',    0x0627, 0x0646, 0x062D, 0x0625,
+    };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCells(testing.allocator, cells.slice(), logical.len)).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
+test "rtl projection resolves numbered mixed list markers and english names" {
+    const logical = [_]u21{
+        '1',    '.',    ' ',    'l',    'a',    'z',    'o',    'c',
+        'h',    'a',    't',    ' ',    '/',    ' ',    'g',    'a',
+        't',    'e',    'l',    'a',    'z',    ' ',    '-',    ' ',
+        0x0644, 0x0644, 0x0627, 0x0633, 0x0645, ' ',    0x062F, 0x0648,
+        0x0644, ' ',    0x0627, 0x0633, 0x0645, 0x064A, 0x0646, ' ',
+        0x0644, 0x0646, 0x0641, 0x0633, ' ',    0x0627, 0x0644, ' ',
+        'a',    'p',    'p',
+    };
+    const expected = [_]u21{
+        'a',    'p',    'p',    ' ',    0x0644, 0x0627, ' ',    0x0633,
+        0x0641, 0x0646, 0x0644, ' ',    0x0646, 0x064A, 0x0645, 0x0633,
+        0x0627, ' ',    0x0644, 0x0648, 0x062F, ' ',    0x0645, 0x0633,
+        0x0627, 0x0644, 0x0644, ' ',    '-',    ' ',    'l',    'a',
+        'z',    'o',    'c',    'h',    'a',    't',    ' ',    '/',
+        ' ',    'g',    'a',    't',    'e',    'l',    'a',    'z',
+        ' ',    '.',    '1',
+    };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCells(testing.allocator, cells.slice(), logical.len)).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
+test "rtl projection resolves neutral punctuation between rtl and english runs" {
+    const logical = [_]u21{
+        0x0648, 0x0644, 0x0648, ' ',    0x062D, 0x0627, 0x062C, 0x062A,
+        0x064A, 0x0646, 0x061F, ' ',    0x0627, 0x0644, 0x0627, 0x0633,
+        0x0645, ' ',    0x062A, 0x063A, 0x064A, 0x064A, 0x0631, ' ',
+        0x0641, 0x064A, ' ',    0x0645, 0x0631, 0x062D, 0x0644, 0x0629,
+        ' ',    0x0645, 0x0639, 0x064A, 0x0646, 0x0629, 0x061F, ' ',
+        'a',    'p',    'p',    ' ',    0x062F, 0x0648, 0x0644, ' ',
+        0x0627, 0x0633, 0x0645, 0x064A, 0x0646, ' ',    0x0644, 0x0646,
+        0x0641, 0x0633, ' ',    0x0627, 0x0644, ' ',    'a',    'p',
+        'p',
+    };
+    const expected = [_]u21{
+        'a',    'p',    'p',    ' ',    0x0644, 0x0627, ' ',    0x0633,
+        0x0641, 0x0646, 0x0644, ' ',    0x0646, 0x064A, 0x0645, 0x0633,
+        0x0627, ' ',    0x0644, 0x0648, 0x062F, ' ',    'a',    'p',
+        'p',    ' ',    0x061F, 0x0629, 0x0646, 0x064A, 0x0639, 0x0645,
+        ' ',    0x0629, 0x0644, 0x062D, 0x0631, 0x0645, ' ',    0x064A,
+        0x0641, ' ',    0x0631, 0x064A, 0x064A, 0x063A, 0x062A, ' ',
+        0x0645, 0x0633, 0x0627, 0x0644, 0x0627, ' ',    0x061F, 0x0646,
+        0x064A, 0x062A, 0x062C, 0x0627, 0x062D, ' ',    0x0648, 0x0644,
+        0x0648,
+    };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCells(testing.allocator, cells.slice(), logical.len)).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
 test "rtl projection returns null for ascii rows" {
     const logical = [_]u21{ 'e', 'c', 'h', 'o', ' ', '-', '-', 'h', 'e', 'l', 'p' };
 
@@ -85,7 +203,7 @@ test "rtl projection reverses arabic only rows" {
 
 test "rtl projection keeps numbered list marker at rtl edge" {
     const logical = [_]u21{ '1', '.', ' ', 0x0645, 0x0631, 0x062D, 0x0628, 0x0627 };
-    const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, '1', '.', ' ' };
+    const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, ' ', '.', '1' };
 
     var cells = try makeCells(testing.allocator, &logical, logical.len);
     defer cells.deinit(testing.allocator);
@@ -98,7 +216,7 @@ test "rtl projection keeps numbered list marker at rtl edge" {
 
 test "rtl projection keeps hyphen list marker at rtl edge" {
     const logical = [_]u21{ '-', ' ', 0x0645, 0x0631, 0x062D, 0x0628, 0x0627 };
-    const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, '-', ' ' };
+    const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, ' ', '-' };
 
     var cells = try makeCells(testing.allocator, &logical, logical.len);
     defer cells.deinit(testing.allocator);
@@ -116,7 +234,7 @@ test "rtl projection can inherit rtl base for wrapped continuation rows" {
     };
     const expected = [_]u21{
         0x0627, 0x0628, 0x062D, 0x0631, 0x0645,
-        'w',    'o',    'r',    'd',    ' ',
+        ' ',    'w',    'o',    'r',    'd',
     };
 
     var cells = try makeCells(testing.allocator, &logical, logical.len);
