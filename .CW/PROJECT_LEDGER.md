@@ -1,6 +1,6 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-24 23:55:06 +0300
+Last updated: 2026-06-25 00:02:17 +0300
 
 ## Current State
 
@@ -10,6 +10,10 @@ Last updated: 2026-06-24 23:55:06 +0300
 - Latest verified RTL source fix commit: `737bf3b7f`
 - Current repo build output: `/Users/aboghali/Project/ghostty-fresh-rtl-v1.3.1/zig-out/Ghostty.app`
 - The repo build artifact is generated and its version suffix follows the git `HEAD` at build time.
+- Desktop test copy: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app`
+- Desktop test copy bundle id: `com.mitchellh.ghostty.simple-rtl-test`
+- Desktop test copy version checked: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+35d480f15`, `channel: tip`
+- Desktop test copy signing: ad-hoc, verified with `codesign --verify --deep --strict`.
 
 ## Golden Artifact
 
@@ -31,6 +35,7 @@ Last updated: 2026-06-24 23:55:06 +0300
 - Create a named backup copy before any source or app replacement work.
 - Do not overwrite, relaunch, or replace the running app without explicit approval from Moe.
 - Future fixes should be rebuilt from source and visually compared against the golden artifact instead of assuming this repo is the original source.
+- Use the separate Desktop test copy for manual checks before any golden-app replacement.
 
 ## Next Steps
 
