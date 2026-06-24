@@ -119,8 +119,7 @@ pub fn isStrongRtl(cp: u21) bool {
 
 pub fn isStrongLtr(cp: u21) bool {
     return (cp >= 'A' and cp <= 'Z') or
-        (cp >= 'a' and cp <= 'z') or
-        (cp >= '0' and cp <= '9');
+        (cp >= 'a' and cp <= 'z');
 }
 
 pub fn isRtlCandidate(cp: u21) bool {

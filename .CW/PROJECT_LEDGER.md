@@ -1,6 +1,6 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-24 23:44:00 +0300
+Last updated: 2026-06-24 23:50:57 +0300
 
 ## Current State
 
@@ -33,5 +33,8 @@ Last updated: 2026-06-24 23:44:00 +0300
 
 ## Next Steps
 
-- Decide whether to rebuild BiDi behavior in source or keep looking for the missing source only as a secondary effort.
+- Phase A source fix: numbered RTL list markers now treat digits as weak for base-direction detection in `src/terminal/rtl_projection.zig`.
+- Added regression coverage for numbered and hyphen RTL list markers in `src/terminal/rtl_projection_test.zig`.
+- Verified with targeted `zig build test -Dtest-filter='rtl projection' -Demit-macos-app=false`, full `zig build test -Demit-macos-app=false`, and a release build command.
+- The wrapped-continuation English-token bug is still a separate phase because `projectCells` receives one row at a time and does not know the wrapped logical line base direction.
 - Keep `default.profraw` out of commits unless profiling data is intentionally needed.

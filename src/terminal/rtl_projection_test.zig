@@ -83,6 +83,32 @@ test "rtl projection reverses arabic only rows" {
     try expectCodepoints(projection.cells.slice().items(.raw), &expected);
 }
 
+test "rtl projection keeps numbered list marker at rtl edge" {
+    const logical = [_]u21{ '1', '.', ' ', 0x0645, 0x0631, 0x062D, 0x0628, 0x0627 };
+    const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, '1', '.', ' ' };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCells(testing.allocator, cells.slice(), logical.len)).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
+test "rtl projection keeps hyphen list marker at rtl edge" {
+    const logical = [_]u21{ '-', ' ', 0x0645, 0x0631, 0x062D, 0x0628, 0x0627 };
+    const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, '-', ' ' };
+
+    var cells = try makeCells(testing.allocator, &logical, logical.len);
+    defer cells.deinit(testing.allocator);
+
+    var projection = (try rtl_projection.projectCells(testing.allocator, cells.slice(), logical.len)).?;
+    defer projection.deinit(testing.allocator);
+
+    try expectCodepoints(projection.cells.slice().items(.raw), &expected);
+}
+
 test "rtl projection preserves trailing empty cells" {
     const logical = [_]u21{ 0x0645, 0x0631, 0x062D, 0x0628, 0x0627 };
     const expected = [_]u21{ 0x0627, 0x0628, 0x062D, 0x0631, 0x0645, 0, 0, 0 };
