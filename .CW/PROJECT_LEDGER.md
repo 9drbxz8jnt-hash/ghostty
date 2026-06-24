@@ -1,20 +1,20 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-25 00:24:20 +0300
+Last updated: 2026-06-25 01:16:30 +0300
 
 ## Current State
 
 - Repo: `/Users/aboghali/Project/ghostty-fresh-rtl-v1.3.1`
 - Branch: `bidi/simple-rtl-v1.3.1`
 - Base simple RTL commit: `eef69f5d3d67945de6e248f369be70340963a7fe`
-- Latest verified RTL source fix commit: `737bf3b7f`
+- Latest verified RTL source fix commit: `9383f4161`
 - Current repo build output: `/Users/aboghali/Project/ghostty-fresh-rtl-v1.3.1/zig-out/Ghostty.app`
 - The repo build artifact is generated and its version suffix follows the git `HEAD` at build time.
 - Desktop test copy: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app`
 - Desktop test copy bundle id: `com.mitchellh.ghostty.simple-rtl-test`
-- Desktop test copy version checked: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+a0d944e2b`, `channel: tip`
+- Desktop test copy version checked: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+9383f4161`, `channel: tip`
 - Desktop test copy signing: ad-hoc, verified with `codesign --verify --deep --strict`.
-- Previous Desktop test copy backup: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app.backup-20260625-002357`
+- Previous Desktop test copy backup: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app.backup-20260625-011509`
 
 ## Golden Artifact
 
@@ -50,3 +50,17 @@ Last updated: 2026-06-25 00:24:20 +0300
 - A fresh plan-consultant run for Phase B hung and was stopped; execution followed the earlier consultant guidance that already required renderer-level base-direction inheritance and matching cursor/render projection.
 - Refreshed `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app` from the Phase B build and re-signed it with the separate test bundle id.
 - Keep `default.profraw` out of commits unless profiling data is intentionally needed.
+- Phase C investigation: Moe's latest screenshots show mixed Arabic/English sentence order still breaks inside a single visual row, especially around punctuation, paths, list markers, and repeated English tokens.
+- Root cause found: `src/terminal/rtl_projection.zig` still groups cells as only RTL vs non-RTL runs. This preserves simple English tokens but mishandles Unicode weak/neutral characters.
+- Local reference check: `fribidi --rtl --novisual --ltov --vtol --levels` maps differ from the current heuristic for Moe-style examples.
+- Existing dependency note: `uucode` is already available to Ghostty modules and exposes `get(.bidi_class, cp)`, so a stronger display-layer projection can use real Unicode Bidi_Class data without adding a new package.
+- Consultant gate: two 2026-06-25 plan-consultant attempts for the Bidi_Class/level-based Phase C plan hung before a final verdict. Audit folders: `/Users/aboghali/.codex/external-worker-runs/2026-06-25-004531-anthropic-plan-consultant` and `/Users/aboghali/.codex/external-worker-runs/2026-06-25-004820-anthropic-plan-consultant`.
+- Moe explicitly approved continuing without consultant after the repeated consultant hangs.
+- Phase C source fix commit: `9383f4161 fix: resolve mixed RTL rows with bidi classes`.
+- Phase C replaced RTL/non-RTL run reversal with a display-only Bidi_Class-based projection: weak/neutral resolution, simple level reordering, and a narrow list-marker RTL base heuristic.
+- `src/build/uucode_config.zig` now includes `bidi_class` in the generated uucode table so `rtl_projection.zig` can use `uucode.get(.bidi_class, cp)` without a new dependency.
+- Added regression coverage for repeated English tokens inside Arabic text, path suffixes, numbered mixed lists, neutral punctuation, and updated marker/wrapped-row expectations to match the same Bidi_Class ordering.
+- Verified Phase C with `zig build test -Dtest-filter='rtl projection' -Demit-macos-app=false`, `zig build test -Dtest-filter='wrapped continuation' -Demit-macos-app=false`, full `zig build test -Demit-macos-app=false`, and `zig build -Doptimize=ReleaseFast -Dxcframework-target=native`.
+- Refreshed `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app`, set bundle id `com.mitchellh.ghostty.simple-rtl-test`, ad-hoc signed it, and verified `codesign --verify --deep --strict`.
+- Desktop test copy `+version` now reports `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+9383f4161`.
+- Running Ghostty processes were not quit or restarted; any already-open window may still be running its previously loaded binary until Moe opens the refreshed Desktop app.
