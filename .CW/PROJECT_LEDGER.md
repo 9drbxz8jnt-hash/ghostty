@@ -1,6 +1,6 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-25 00:20:16 +0300
+Last updated: 2026-06-25 00:24:20 +0300
 
 ## Current State
 
@@ -12,8 +12,9 @@ Last updated: 2026-06-25 00:20:16 +0300
 - The repo build artifact is generated and its version suffix follows the git `HEAD` at build time.
 - Desktop test copy: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app`
 - Desktop test copy bundle id: `com.mitchellh.ghostty.simple-rtl-test`
-- Desktop test copy version checked: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+35d480f15`, `channel: tip`
+- Desktop test copy version checked: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+a0d944e2b`, `channel: tip`
 - Desktop test copy signing: ad-hoc, verified with `codesign --verify --deep --strict`.
+- Previous Desktop test copy backup: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app.backup-20260625-002357`
 
 ## Golden Artifact
 
@@ -47,4 +48,5 @@ Last updated: 2026-06-25 00:20:16 +0300
 - Added regression coverage for RTL-base wrapped continuations that begin with English and for LTR-only continuation rows aligned to the RTL edge.
 - Verified Phase B with `zig build test -Dtest-filter='wrapped continuation' -Demit-macos-app=false`, `zig build test -Dtest-filter='rtl projection' -Demit-macos-app=false`, and full `zig build test -Demit-macos-app=false`.
 - A fresh plan-consultant run for Phase B hung and was stopped; execution followed the earlier consultant guidance that already required renderer-level base-direction inheritance and matching cursor/render projection.
+- Refreshed `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app` from the Phase B build and re-signed it with the separate test bundle id.
 - Keep `default.profraw` out of commits unless profiling data is intentionally needed.
