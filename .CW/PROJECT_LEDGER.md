@@ -1,6 +1,6 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-25 08:36:49 +0300
+Last updated: 2026-06-25 08:53:28 +0300
 
 ## Current State
 
@@ -17,6 +17,8 @@ Last updated: 2026-06-25 08:36:49 +0300
 - Previous Desktop test copy backup: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app.backup-20260625-011509`
 - GitHub publish target: `origin/bidi/simple-rtl-v1.3.1`
 - GitHub publish scope: stable simple RTL display-layer fixes through Phase C, plus this ledger description.
+- GitHub PR: `https://github.com/9drbxz8jnt-hash/ghostty/pull/1`
+- GitHub PR state: draft PR from `bidi/simple-rtl-v1.3.1` into `main`, created after Moe's explicit no-PR-rule override.
 
 ## GitHub Publish Description
 
