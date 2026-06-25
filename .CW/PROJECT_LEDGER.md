@@ -1,6 +1,6 @@
 # Ghostty RTL Project Ledger
 
-Last updated: 2026-06-25 01:16:30 +0300
+Last updated: 2026-06-25 08:36:49 +0300
 
 ## Current State
 
@@ -15,6 +15,17 @@ Last updated: 2026-06-25 01:16:30 +0300
 - Desktop test copy version checked: `Ghostty 1.3.1-bidi-simple-rtl-v1.3.1+9383f4161`, `channel: tip`
 - Desktop test copy signing: ad-hoc, verified with `codesign --verify --deep --strict`.
 - Previous Desktop test copy backup: `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app.backup-20260625-011509`
+- GitHub publish target: `origin/bidi/simple-rtl-v1.3.1`
+- GitHub publish scope: stable simple RTL display-layer fixes through Phase C, plus this ledger description.
+
+## GitHub Publish Description
+
+- This branch keeps Ghostty's terminal buffer logical and applies RTL/BiDi handling only as a display projection.
+- Phase C fixes the remaining mixed Arabic/English ordering issues Moe saw in screenshots: repeated English words, punctuation, paths, numbered lists, and Arabic text after English tokens.
+- The fix uses Ghostty's existing `uucode` data with Unicode `Bidi_Class` instead of adding a new dependency.
+- The refreshed test app is `/Users/aboghali/Desktop/Ghostty-SimpleRTL-Test.app`, intentionally separate from the stable `/Applications/Ghostty.app`.
+- Verification passed: targeted RTL projection tests, wrapped-row tests, full Zig test suite, release build, Desktop app version check, and `codesign --verify --deep --strict`.
+- `default.profraw` is intentionally left untracked because it is a local profiling artifact, not source.
 
 ## Golden Artifact
 
