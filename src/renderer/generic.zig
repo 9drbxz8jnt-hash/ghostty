@@ -2428,6 +2428,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     y,
                     row,
                     cells,
+                    rtlProjectionOptionsForRow(
+                        row_raws[0..row_len],
+                        row_cells[0..row_len],
+                        y_usize,
+                        self.cells.size.columns,
+                    ),
                     preedit_range,
                     selection,
                     highlights,
@@ -2455,6 +2461,31 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 // a cursor. Otherwise, get our cursor cell, because we may
                 // need it for styling.
                 const cursor_vp = state.cursor.viewport orelse break :cursor;
+                const cursor_visual_x: ?terminal.size.CellCountInt = cursor_visual_x: {
+                    if (cursor_vp.y >= row_cells.len) break :cursor_visual_x null;
+
+                    const cursor_cells_slice = row_cells[cursor_vp.y].slice();
+                    const cursor_cells_len = @min(cursor_cells_slice.len, self.cells.size.columns);
+                    var projection = (terminal.rtl_projection.projectCellsWithOptions(
+                        self.alloc,
+                        cursor_cells_slice,
+                        cursor_cells_len,
+                        rtlProjectionOptionsForRow(
+                            row_raws[0..row_len],
+                            row_cells[0..row_len],
+                            @intCast(cursor_vp.y),
+                            self.cells.size.columns,
+                        ),
+                    ) catch |err| {
+                        log.warn("error projecting RTL cursor x err={}", .{err});
+                        break :cursor_visual_x null;
+                    }) orelse break :cursor_visual_x null;
+                    defer projection.deinit(self.alloc);
+
+                    if (cursor_vp.x >= projection.logical_to_visual.len) break :cursor_visual_x null;
+                    break :cursor_visual_x @intCast(projection.logical_to_visual[cursor_vp.x]);
+                };
+
                 const cursor_style: terminal.Style = cursor_style: {
                     const cells = state.row_data.items(.cells);
                     const cell = cells[cursor_vp.y].get(cursor_vp.x);
@@ -2514,20 +2545,19 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     &state.cursor,
                     style,
                     cursor_color,
+                    cursor_visual_x,
                 );
 
                 // If the cursor is visible then we set our uniforms.
                 if (style == .block) {
                     const wide = state.cursor.cell.wide;
+                    const cursor_grid_x = cursor_visual_x orelse switch (wide) {
+                        .narrow, .spacer_head, .wide => cursor_vp.x,
+                        .spacer_tail => cursor_vp.x -| 1,
+                    };
 
                     self.uniforms.cursor_pos = .{
-                        // If we are a spacer tail of a wide cell, our cursor needs
-                        // to move back one cell. The saturate is to ensure we don't
-                        // overflow but this shouldn't happen with well-formed input.
-                        switch (wide) {
-                            .narrow, .spacer_head, .wide => cursor_vp.x,
-                            .spacer_tail => cursor_vp.x -| 1,
-                        },
+                        cursor_grid_x,
                         @intCast(cursor_vp.y),
                     };
 
@@ -2607,11 +2637,41 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             // });
         }
 
+        fn rtlProjectionOptionsForRow(
+            row_raws: []const terminal.page.Row,
+            row_cells: []std.MultiArrayList(terminal.RenderState.Cell),
+            row_index: usize,
+            width: usize,
+        ) terminal.rtl_projection.Options {
+            if (row_index >= row_raws.len or row_index >= row_cells.len) return .{};
+            if (!row_raws[row_index].wrap_continuation) return .{};
+
+            var base_index = row_index;
+            while (base_index > 0 and row_raws[base_index].wrap_continuation) {
+                base_index -= 1;
+            }
+
+            // The wrapped logical line started above the current viewport; keep
+            // auto-detection instead of guessing a base direction.
+            if (row_raws[base_index].wrap_continuation) return .{};
+
+            const base_direction = terminal.rtl_projection.detectBaseDirection(
+                row_cells[base_index].slice(),
+                width,
+            ) orelse return .{};
+
+            return .{
+                .base_direction = base_direction,
+                .align_end = base_direction == .rtl,
+            };
+        }
+
         fn rebuildRow(
             self: *Self,
             y: terminal.size.CellCountInt,
             row: terminal.page.Row,
             cells: *std.MultiArrayList(terminal.RenderState.Cell),
+            rtl_projection_options: terminal.rtl_projection.Options,
             preedit_range: ?PreeditRange,
             selection: ?[2]terminal.size.CellCountInt,
             highlights: *const std.ArrayList(terminal.RenderState.Highlight),
@@ -2621,8 +2681,21 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
             // If our viewport is wider than our cell contents buffer,
             // we still only process cells up to the width of the buffer.
-            const cells_slice = cells.slice();
+            var cells_slice = cells.slice();
             const cells_len = @min(cells_slice.len, self.cells.size.columns);
+            var rtl_projection: ?terminal.rtl_projection.Projection = null;
+            defer if (rtl_projection) |*projection| projection.deinit(self.alloc);
+
+            if (try terminal.rtl_projection.projectCellsWithOptions(
+                self.alloc,
+                cells_slice,
+                cells_len,
+                rtl_projection_options,
+            )) |projection| {
+                rtl_projection = projection;
+                cells_slice = rtl_projection.?.cells.slice();
+            }
+
             const cells_raw = cells_slice.items(.raw);
             const cells_style = cells_slice.items(.style);
 
@@ -2666,6 +2739,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 .cursor_x = cursor_x: {
                     const vp = state.cursor.viewport orelse break :cursor_x null;
                     if (vp.y != y) break :cursor_x null;
+                    if (rtl_projection) |*projection| {
+                        if (vp.x < projection.logical_to_visual.len) {
+                            break :cursor_x projection.logical_to_visual[vp.x];
+                        }
+                    }
                     break :cursor_x vp.x;
                 },
             };
@@ -2680,6 +2758,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 cells_raw[0..cells_len],
                 cells_style[0..cells_len],
             ) |x, *cell, *managed_style| {
+                const logical_x: usize = if (rtl_projection) |*projection|
+                    projection.visual_to_logical[x]
+                else
+                    x;
+
                 // If this cell falls within our preedit range then we
                 // skip this because preedits are setup separately.
                 if (preedit_range) |range| preedit: {
@@ -2758,10 +2841,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     // Order below matters for precedence.
 
                     // Selection should take the highest precedence.
-                    const x_compare = if (wide == .spacer_tail)
-                        x -| 1
+                    const x_compare = if (wide == .spacer_tail and logical_x > 0)
+                        logical_x - 1
                     else
-                        x;
+                        logical_x;
                     if (selection) |sel| {
                         if (x_compare >= sel[0] and
                             x_compare <= sel[1]) break :selected .selection;
@@ -2932,7 +3015,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 // distinguish them.
                 const underline: terminal.Attribute.Underline = underline: {
                     if (links.contains(.{
-                        .x = @intCast(x),
+                        .x = @intCast(logical_x),
                         .y = @intCast(y),
                     })) {
                         break :underline if (style.flags.underline == .single)
@@ -3226,8 +3309,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             cursor_state: *const terminal.RenderState.Cursor,
             cursor_style: renderer.CursorStyle,
             cursor_color: terminal.color.RGB,
+            cursor_visual_x: ?terminal.size.CellCountInt,
         ) void {
             const cursor_vp = cursor_state.viewport orelse return;
+            const cursor_x = cursor_visual_x orelse cursor_vp.x;
 
             // Add the cursor. We render the cursor over the wide character if
             // we're on the wide character tail.
@@ -3235,12 +3320,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 // The cursor goes over the screen cursor position.
                 if (!cursor_vp.wide_tail) break :cell .{
                     cursor_state.cell.wide == .wide,
-                    cursor_vp.x,
+                    cursor_x,
                 };
 
                 // If we're part of a wide character, we move the cursor back
                 // to the actual character.
-                break :cell .{ true, cursor_vp.x - 1 };
+                break :cell .{ true, cursor_x -| 1 };
             };
 
             const alpha: u8 = if (!self.focused) 255 else alpha: {

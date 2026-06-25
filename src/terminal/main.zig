@@ -6,6 +6,7 @@ const render = @import("render.zig");
 const stream_terminal = @import("stream_terminal.zig");
 const style = @import("style.zig");
 pub const apc = @import("apc.zig");
+pub const rtl_projection = @import("rtl_projection.zig");
 pub const dcs = @import("dcs.zig");
 pub const osc = @import("osc.zig");
 pub const point = @import("point.zig");
@@ -82,6 +83,7 @@ test {
     @import("std").testing.refAllDecls(@This());
 
     // Internals
+    _ = @import("rtl_projection_test.zig");
     _ = @import("bitmap_allocator.zig");
     _ = @import("hash_map.zig");
     _ = @import("ref_counted_set.zig");
